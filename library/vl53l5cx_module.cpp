@@ -1,6 +1,7 @@
 extern "C" {
 	#include "vl53l5cx_api.h"
 	#include "vl53l5cx_plugin_motion_indicator.h"
+	#include "vl53l5cx_plugin_xtalk.h"
 
 	void *__symbols__[] = {
 		(void *)&vl53l5cx_is_alive,
@@ -29,7 +30,13 @@ extern "C" {
 		(void *)&vl53l5cx_dci_replace_data,
 		// Motion
 		(void *)&vl53l5cx_motion_indicator_init,
-		(void *)&vl53l5cx_motion_indicator_set_distance_motion
+		(void *)&vl53l5cx_motion_indicator_set_distance_motion,
+		(void *)&vl53l5cx_motion_indicator_set_resolution,
+		(void *)&vl53l5cx_calibrate_xtalk,
+		(void *)&vl53l5cx_get_caldata_xtalk,
+		(void *)&vl53l5cx_set_caldata_xtalk,
+		(void *)&vl53l5cx_get_xtalk_margin,
+		(void *)&vl53l5cx_set_xtalk_margin
 	};
 
 	VL53L5CX_Configuration* get_configuration(uint8_t i2c_addr, i2c_read_func i2c_read, i2c_write_func i2c_write, sleep_func sleep_ms) {

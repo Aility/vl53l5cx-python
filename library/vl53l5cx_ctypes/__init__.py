@@ -46,6 +46,9 @@ STATUS_RANGE_TARGET_BLURRED = 12
 STATUS_RANGE_TARGET_INCONSISTENT = 13
 STATUS_RANGE_NO_TARGET = 255
 
+
+XTALK_BUFFER_SIZE = 776
+
 _I2C_CHUNK_SIZE = 2048
 
 _I2C_RD_FUNC = CFUNCTYPE(c_int, c_uint8, c_uint16, POINTER(c_uint8), c_uint32)
@@ -180,6 +183,79 @@ class VL53L5CX:
             raise ValueError("distance between distance_min and distance_max must be < 1500mm")
         return _VL53.vl53l5cx_motion_indicator_set_distance_motion(self._configuration, self._motion_configuration, distance_min, distance_max)
 
+    def set_motion_resolution(self, resolution):
+        """Set motion resolition
+
+        :param resolution: resolution one of RESOLUTION_4X4, RESOLUTION_8x8
+        """
+        if resolution not in [RESOLUTION_4X4, RESOLUTION_8X8]:
+            raise RuntimeError(f"Resolution should be one of [{RESOLUTION_4X4}, {RESOLUTION_8X8}]")
+        return _VL53.vl53l5cx_motion_indicator_set_resolution(self._configuration, self._motion_configuration, resolution)
+
+    def calibrate_xtalk(self, reflectance_percent, nb_samples, distance_mm):
+        """This function starts the VL53L5CX sensor in order to calibrate Xtalk.
+        This calibration is recommended is user wants to use a coverglass.
+        
+        :param reflectance_percent : Target reflectance in percent. This
+        value is include integers between 1 and 99%. For a better efficiency, ST recommends a
+        3% target reflectance.
+        :param  nb_samples : Number of samples used for calibration. A higher
+        number of samples means a higher accuracy, but it increases the calibration
+        time. Minimum is 1 and maximum is 16.
+        :param distance_mm : Target distance in mm. The minimum allowed
+        distance is 600mm, and maximum is 3000mm in integer. The target must stay in Full FOV,
+        so short distance are easier for calibration.
+        """
+        if not (0 < reflectance_percent and 100 > reflectance_percent and type(reflectance_percent) is int):
+            raise ValueError("reflectance_percent should be integer between 1 and 99")
+        if not (0 < nb_samples and nb_samples <= 16 and type(nb_samples) is int):
+            raise ValueError("nb_sambples should be integer between 1 and 16")
+        if not (600 <= distance_mm and distance_mm <=  3000):
+            raise ValueError("distance_mm should be a number between 600 and 3000")
+        return _VL53.vl53l5cx_calibrate_xtalk(self._configuration, reflectance_percent, nb_samples, distance_mm)
+
+    def get_caldata_xtalk(self, p_xtalk_data):
+        """This function gets the Xtalk buffer. The buffer is available after
+        using the function vl53l5cx_calibrate_xtalk().
+        :return: p_xtalk_data in case everything succeeds else -1
+        """
+        p_xtalk_data = c_uint8 * XTALK_BUFFER_SIZE
+        status = _VL53.vl53l5cx_get_caldata_xtalk(self._configuration, p_xtalk_data)
+        if status == STATUS_OK:
+            return p_xtalk_data[:]
+        else:
+            return -1
+
+    def set_caldata_xtalk(self, p_xtalk_data):
+        """This function sets the Xtalk buffer. This function can be used to
+        override default Xtalk buffer.
+        :param p_xtalk_data : Buffer with a size defined by macro VL53L5CX_XTALK_SIZE.
+        """
+        return _VL53.vl53l5cx_set_caldata_xtalk(self._configuration, p_xtalk_data)
+    
+    def get_xtalk_margin(self ):
+        """This function gets the Xtalk margin. This margin is used to increase
+        the Xtalk threshold. It can also be used to avoid false positives after the Xtalk calibration.
+        The default value is 50 kcps/spads.
+        :return: xtalk_margin in case everything succeeds else -1
+        """
+        p_xtalk_margin = c_uint32 * 1
+        status = _VL53.vl53l5cx_get_xtalk_margin(self._configuration, p_xtalk_margin)
+        if status == STATUS_OK:
+            return p_xtalk_margin[0]
+        else:
+            return -1
+
+    def set_xtalk_margin(self, xtalk_margin=50):
+        """This function sets the Xtalk margin. This margin is used to increase
+        the Xtalk threshold. It can also be used to avoid false positives after the
+        Xtalk calibration. The default value is 50 kcps/spads.
+        :param xtalk_margin : New Xtalk margin in kcps/spads. Min value is 0 kcps/spads, and max is 10.000 kcps/spads
+        """
+        if not(xtalk_margin >= 0 and xtalk_margin <= 10000 and type(xtalk_margin) is int):
+            raise ValueError("xtalk_margin should be between 0 kcps/spads and 10.000 kcps/spads")
+        return _VL53.vl53l5cx_set_xtalk_margin(self._configuration, xtalk_margin)
+    
     def is_alive(self):
         """Check sensor is connected.
 
